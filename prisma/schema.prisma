@@ -1,0 +1,404 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DB_URL")
+}
+
+model User {
+  id                          BigInt         @id @default(autoincrement())
+  firstName                   String
+  lastName                    String
+  email                       String         @unique
+  phoneNumber                 String?
+  countryCode                 String?
+  isPhoneVerified             Boolean        @default(false)
+  isEmailVerified             Boolean        @default(false)
+  password                    String?
+  userType                    UserType?      @default(storeOwner)
+  passwordHint                String?
+  enableTwoFa                 Boolean        @default(false)
+  twoFaCode                   String?
+  profilePicture              String?
+  devices                     Device[]       @relation("UserDevice")
+  notifications               Notification[] @relation("ReceiverDetail")
+  accountEnabled              Boolean        @default(true)
+  accountSuspended            Boolean        @default(false)
+  receiveNewsLetter           Boolean        @default(true)
+  receiveNotification         Boolean        @default(true)
+  resetPasswordCheckCompleted Boolean        @default(false)
+  requestDelete               Boolean        @default(false)
+  isDeleted                   Boolean        @default(false)
+  otpCode                     String?
+  otpExpirationTime           DateTime?
+  referralCode                String?
+  referredBy                  String?
+  lastLoginDate               DateTime?
+  loginDisabled               Boolean        @default(false)
+  loginAttempt                Int            @default(0)
+  nextLoginEnableDate         DateTime?
+  firebaseToken               String?
+  token                       String?
+  refreshToken                String?
+  ownedStores                 Store[]        @relation("UserStores")
+  storeWorkers                StoreWorker[]  @relation("StoreWorkerUser")
+  sales                       SoldProducts[] @relation("UserSoldProduct")
+  payments                    Payment[]      @relation("PaymentCashier")
+  transactions                Transaction[]  @relation("TransactionCashier")
+  branchRoleId                BigInt?
+  createdAt                   DateTime       @default(now())
+  updatedAt                   DateTime       @updatedAt
+
+  @@unique([countryCode, phoneNumber])
+  @@index([email, phoneNumber])
+}
+
+model Device {
+  id             BigInt   @id @default(autoincrement())
+  name           String
+  deviceUniqueId String   @unique
+  deviceIp       String
+  user           User     @relation("UserDevice", fields: [userId], references: [id])
+  userId         BigInt
+  token          String?  @db.Text
+  refreshToken   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([deviceUniqueId])
+}
+
+model Notification {
+  id         BigInt   @id @default(autoincrement())
+  title      String
+  message    String
+  category   BigInt   @default(0)
+  isRead     Boolean  @default(false)
+  receiver   User     @relation("ReceiverDetail", fields: [receiverId], references: [id])
+  receiverId BigInt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Store {
+  id                 BigInt            @id @default(autoincrement())
+  mid                String?
+  tid                String?
+  terminalSerial     String?
+  terminalVerified   Boolean?          @default(false)
+  name               String
+  description        String?
+  logo               String?
+  businessEmail      String
+  contactEmail       String?
+  phoneNumber        String?
+  country            String?
+  state              String?
+  city               String?
+  address            String?
+  defaultCurrency    String?           @default("GHS")
+  storeNumber        String
+  websiteUrl         String?
+  lowStockCount      Int               @default(10)
+  allowPayLater      Boolean           @default(true)
+  allowMobileMoney   Boolean           @default(true)
+  allowCardPayment   Boolean           @default(true)
+  allowCash          Boolean           @default(true)
+  applyVat           Boolean           @default(false)
+  vatAmount          Float             @default(0.0)
+  applyTax           Boolean           @default(false)
+  taxAmount          Float             @default(0.0)
+  applyServiceCharge Boolean           @default(false)
+  serviceCharge      Float?            @default(0.0)
+  applyNHIL          Boolean           @default(false)
+  nhilAmount         Float?            @default(0.0)
+  applyGEFL          Boolean           @default(false)
+  geflAmount         Float?            @default(0.0)
+  applyCovidLevy     Boolean           @default(false)
+  covidLevyAmount    Float?            @default(0.0)
+  applyTRLevy        Boolean           @default(false)
+  trLevyAmount       Float?            @default(0.0)
+  discountConfig     DiscountConfig?   @relation("StoreDiscount")
+  status             Status            @default(inactive)
+  createdBy          BigInt
+  owner              User              @relation("UserStores", fields: [createdBy], references: [id])
+  productCategories  ProductCategory[] @relation("StoreCategory")
+  suppliers          StoreSupplier[]   @relation("StoreSupplier")
+  storeBranches      StoreBranch[]     @relation("MainStore")
+  products           Product[]         @relation("StoreProduct")
+  sales              SoldProducts[]    @relation("SoldProductStore")
+  transactions       Transaction[]     @relation("TransactionStore")
+  branchRole         BranchRole[]      @relation("StoreRole")
+  workers            StoreWorker[]     @relation("StoreWorkerMain")
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+}
+
+model DiscountConfig {
+  id                 BigInt       @id @default(autoincrement())
+  storeId            BigInt       @unique
+  store              Store        @relation("StoreDiscount", fields: storeId, references: id)
+  discountCapValue   Float?
+  discountMinValue   Float?
+  discountCapApplied Boolean      @default(false)
+  discountMinApplied Boolean      @default(false)
+  discountType       DiscountType @default(percentage)
+  discountActive     Boolean      @default(false)
+  discountValue      Float        @default(10)
+  discountStart      DateTime?
+  discountEnd        DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+}
+
+model StoreWorker {
+  id               BigInt      @id @default(autoincrement())
+  userId           BigInt
+  staffCode        String
+  storeId          BigInt
+  storeBranchId    BigInt
+  roleId           BigInt
+  user             User        @relation("StoreWorkerUser", fields: userId, references: id)
+  store            Store       @relation("StoreWorkerMain", fields: storeId, references: id)
+  storeBranch      StoreBranch @relation("StoreWorkerBranch", fields: storeBranchId, references: id)
+  storeProfileRole BranchRole  @relation("WorkerRole", fields: roleId, references: id)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@unique([storeBranchId, userId])
+  @@unique([storeId, staffCode])
+}
+
+model StoreBranch {
+  id              BigInt         @id @default(autoincrement())
+  name            String
+  description     String?
+  contactEmail    String?
+  phoneNumber     String?
+  country         String?
+  state           String?
+  city            String?
+  address         String?
+  defaultCurrency String?
+  branchNumber    String
+  storeId         BigInt
+  store           Store          @relation("MainStore", fields: storeId, references: id)
+  workers         StoreWorker[]  @relation("StoreWorkerBranch")
+  products        Product[]      @relation("StoreBranchProduct")
+  sales           SoldProducts[] @relation("SoldProductStoreBranch")
+  transactions    Transaction[]  @relation("TransactionBranch")
+  status          Status         @default(active)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([storeId, name])
+  @@index([storeId, name])
+}
+
+model BranchRole {
+  id          BigInt        @id @default(autoincrement())
+  title       String
+  description String?
+  isGeneric   Boolean?      @default(false)
+  permissions String        @db.Text
+  storeId     BigInt?
+  workers     StoreWorker[] @relation("WorkerRole")
+  store       Store?        @relation("StoreRole", fields: storeId, references: id)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([storeId, title])
+  @@index([storeId, title])
+}
+
+model ProductCategory {
+  id          BigInt    @id @default(autoincrement())
+  name        String
+  description String?
+  storeId     BigInt
+  store       Store     @relation("StoreCategory", fields: storeId, references: id)
+  products    Product[] @relation("StoreCategoryProduct")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([storeId, name])
+  @@index([storeId, name])
+}
+
+model StoreSupplier {
+  id          BigInt    @id @default(autoincrement())
+  name        String
+  email       String
+  phoneNumber String
+  storeId     BigInt
+  store       Store     @relation("StoreSupplier", fields: storeId, references: id)
+  products    Product[] @relation("StoreSupplierProduct")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([storeId, name])
+  @@index([storeId, name])
+}
+
+model Product {
+  id                 BigInt           @id @default(autoincrement())
+  amount             Float
+  previousAmount     Float?
+  costAmount         Float?
+  availabilityStatus ProductStaus     @default(active)
+  isEnabled          Boolean          @default(true)
+  barCode            String?
+  productCode        String
+  name               String
+  description        String?
+  productImage       String?
+  quantity           Int              @default(0)
+  stockType          StockType        @default(stock)
+  notifySupplier     Boolean          @default(false)
+  hasDiscount        Boolean          @default(false)
+  discountType       DiscountType     @default(percentage)
+  discountValue      Float            @default(10)
+  storeId            BigInt
+  storeBranchId      BigInt
+  supplierId         BigInt?
+  categoryId         BigInt?
+  store              Store            @relation("StoreProduct", fields: storeId, references: id)
+  branch             StoreBranch      @relation("StoreBranchProduct", fields: storeBranchId, references: id)
+  category           ProductCategory? @relation("StoreCategoryProduct", fields: categoryId, references: id)
+  supplier           StoreSupplier?   @relation("StoreSupplierProduct", fields: supplierId, references: id)
+  sales              SoldProducts[]   @relation("SoldProduct")
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@unique([storeBranchId, name])
+  @@index([storeBranchId, name])
+}
+
+model Transaction {
+  id                              BigInt            @id @default(autoincrement())
+  transactionReference            String
+  totalPriceBeforeProductDiscount Float
+  totalPriceAfterProductDiscount  Float
+  amountToPay                     Float
+  amountPaid                      Float
+  balance                         Float             @default(0)
+  vat                             Float             @default(0)
+  tax                             Float             @default(0)
+  nhil                            Float             @default(0)
+  covidLevy                       Float             @default(0)
+  serviceCharge                   Float             @default(0)
+  gefl                            Float             @default(0)
+  trLevy                          Float             @default(0)
+  storeDiscountApplied            Boolean           @default(false)
+  storeDiscountAmount             Float             @default(0)
+  isPayLater                      Boolean           @default(false)
+  status                          TransactionStatus @default(pending)
+  customer                        Json?
+  sales                           SoldProducts[]    @relation("SoldProductTransaction")
+  payments                        Payment[]         @relation("PaymentTransaction")
+  cashierId                       BigInt
+  storeId                         BigInt
+  branchId                        BigInt
+  cashier                         User              @relation("TransactionCashier", fields: cashierId, references: id)
+  store                           Store             @relation("TransactionStore", fields: storeId, references: id)
+  branch                          StoreBranch       @relation("TransactionBranch", fields: branchId, references: id)
+  createdAt                       DateTime          @default(now())
+  updatedAt                       DateTime          @updatedAt
+}
+
+model Payment {
+  id            BigInt        @id @default(autoincrement())
+  amountPaid    Float
+  paymentMethod PaymentMethod
+  paymentRef    String
+  customer      Json?
+  currency      String        @default("GHS")
+  transactionId BigInt
+  cashierId     BigInt
+  transaction   Transaction   @relation("PaymentTransaction", fields: transactionId, references: id)
+  cashier       User          @relation("PaymentCashier", fields: cashierId, references: id)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model SoldProducts {
+  id                    BigInt      @id @default(autoincrement())
+  productName           String
+  productDescription    String?
+  quantity              Int
+  amountPerItem         Float
+  costAmountPerItem     Float?
+  amountPerItemAfterTax Float       @default(0)
+  totalAmount           Float
+  hasDiscount           Boolean     @default(false)
+  discountAmount        Float       @default(0)
+  productId             BigInt
+  storeId               BigInt
+  branchId              BigInt
+  cashierId             BigInt
+  transactionId         BigInt
+  isDeleted             Boolean     @default(false)
+  product               Product     @relation("SoldProduct", fields: productId, references: id)
+  store                 Store       @relation("SoldProductStore", fields: storeId, references: id)
+  storeBranch           StoreBranch @relation("SoldProductStoreBranch", fields: branchId, references: id)
+  cashier               User        @relation("UserSoldProduct", fields: cashierId, references: id)
+  transaction           Transaction @relation("SoldProductTransaction", fields: transactionId, references: id)
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+}
+
+enum Status {
+  deleted
+  pending
+  processing
+  awaitingVerification
+  awaitingDelete
+  approved
+  active
+  inactive
+  completed
+  rejected
+  failed
+}
+
+enum ProductStaus {
+  active
+  inactive
+}
+
+enum DiscountType {
+  fixed
+  percentage
+}
+
+enum StockType {
+  stock
+  non_stock
+}
+
+enum UserType {
+  storeOwner
+  worker
+}
+
+enum TransactionStatus {
+  pending
+  balance
+  paid
+  failed
+}
+
+enum PaymentMethod {
+  cash
+  momo
+  card
+  transfer
+}

@@ -1,0 +1,18 @@
+version: "3.2"
+
+services:
+  api:
+    container_name: my-shopkeeper-v2
+    build:
+      dockerfile: Dockerfile
+      context: ./
+    ports:
+      - 6000:6000
+    volumes:
+      - ".:/home/node/app"
+      - "./docker/run.sh:/usr/bin/run.sh"
+    networks:
+      - shopkeeper_network
+
+networks:
+  shopkeeper_network:
